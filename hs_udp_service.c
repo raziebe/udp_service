@@ -14,10 +14,10 @@
 #include "hs_fifo.h"
 #include "hs_buffer_pool.h"
 #include "hs_udp_fragments.h"
-#include "r_udp.h"
 #include "sensor_stats.h"
 #include "hslog/hslog.h"
 
+#define MAX_EVENTS              1
 
 const char *fifo_srv  = "/dev/hsfifo_1";
 const char *fifo_core = "/dev/hsfifo_0";
@@ -51,8 +51,7 @@ void* iot_receive_routine(void *args)
     struct epoll_event      events[MAX_EVENTS];
     uint8_t                 frgmntIdx = 0;
     uint8_t                 *dataPtr = NULL;
-    extern int 		    service_disabled;
-    uint8_t                 txSeqNum        = 0;
+    extern int service_disabled;
 
     // create the epoll instance
     epollFd = epoll_create1(0);
@@ -90,9 +89,27 @@ void* iot_receive_routine(void *args)
 		hslog_error("Dumping msg\n");	
 		continue;
         }
+/*
+	// transmit if data available
+	int frags = (res/MAX_MSG_SIZE) + 1; // We mitigate in fragments, not data size
+	size_t avail = 0;
+	if (!get_fifo_avail(fifo_srv, &avail)) {
+		if (avail<64){
+			hslog_error("fusion Queue full %d, dumping data\n",avail);
+			update_stats_pkts_err(1);
+			continue;
+		}
+	}
 
-	int frgmnts = res/MAX_MSG_SIZE + 1;
-	txSeqNum++;
+	hslog_error("Fragments needed %d avail=%d\n", frags, avail);
+	avail = 0;
+	if (!get_fifo_avail(fifo_core, &avail)){
+		if (avail < 64){
+			hslog_error("Fusion core queue full, polling avail=%d\n",avail);
+			continue;
+		}
+	}
+*/
         if(res > 0){
                 // Received data
                 // Push data to receive queue
@@ -101,38 +118,40 @@ void* iot_receive_routine(void *args)
                 // We have a valid terminal for this UDP packet.
                 dataPtr = rxPayLoad.data;
                 frgmntIdx = 0;
-                while (res > 0){
 
+                while(res > 0){
                     Fifo_get(fifoClusterPtr->IotThrInFifo, (void **)&dataPayLoad);
-		    dataPayLoad->seqNum = txSeqNum; 	
-        	    dataPayLoad->msgHeader.frgmnts = frgmnts;
                     if(MAX_MSG_SIZE < res){
                         dataPayLoad->msgLen = MAX_MSG_SIZE;
                         res -= MAX_MSG_SIZE;
-                    } else{
+                        dataPayLoad->msgHeader.frgmntByte = (frgmntIdx << 1) | 0x01;
+                    }
+                    else{
                         dataPayLoad->msgLen = res;
                         res = 0;
+
+                        // Check if last fragment. Don't set more fragments flag for last segment
+                        // only set the fragment index. If not last fragment, then this lonely packet needs no fragmentation
+                        // no need to set fragment index or more fragment flag.
+                        dataPayLoad->msgHeader.frgmntByte = (frgmntIdx != 0)? (frgmntIdx << 1) : 0;
                     }
-                    dataPayLoad->msgHeader.frgmntIdx = frgmntIdx & 0b11111;
                     frgmntIdx++;
+
 		    // Pad out with zeroes
                     memset(dataPayLoad->data, 0x00, MAX_MSG_SIZE);
                     // Get fifo to read data from socket
                     memcpy(dataPayLoad->data, dataPtr, dataPayLoad->msgLen);
                     dataPtr += dataPayLoad->msgLen;
                     Fifo_put(fifoClusterPtr->IotThrOutFifo, (void **)&dataPayLoad);
-		   
+		    update_stats_pkts_recv(1);
                 }
-		update_stats_pkts_recv(1);
-		continue;
-            }
-
-            if((res < 0) && (errno != EAGAIN)){
+            } else{
+                if((res < 0) && (errno != EAGAIN)){
                     // Failed to receive data
                     hslog_error("Failed to receive IOT data. Socket failure. Error - %s. Retrying.\n", strerror(errno));
 		    update_stats_pkts_err(1);
-            }
-        
+                }
+        }
      }        
 }
 
@@ -215,7 +234,7 @@ void* iot_transmit_routine(void *args)
             ////////////////////////////////////////////////////////////////////////////
             UDP_Fragment_t *msgHandle = NULL;
             res = defragment(&fragmentsTable, dataPayLoad, &msgHandle);
-		
+
             if((res == 0)){
                 if(msgHandle != NULL){
                     dataPtr = msgHandle->data;
@@ -247,6 +266,7 @@ void* fusion_transmit_routine(void *args)
     int                         epollTxFd       = -1;
     int                         waitFds         = 0;
     int                         waitTime        = 1000; // 10 milliseconds
+    uint32_t                    txSeqNum        = 0;
     Thread_Info_t               *infoPtr        = (Thread_Info_t *)args;
     UDP_socket_t                *sock           = infoPtr->sockPtr;
     Fifo_Cluster_t              *fifoClusterPtr = infoPtr->fifoClusterPtr;
@@ -269,7 +289,8 @@ void* fusion_transmit_routine(void *args)
         return NULL;
     } 
 
-    while(1) {        
+    while(1)
+    {        
         // now wait on read ready
         waitFds = epoll_wait(epollTxFd, events, MAX_EVENTS, waitTime);
         if(waitFds == -1){
@@ -285,22 +306,17 @@ void* fusion_transmit_routine(void *args)
 	Fifo_get(fifoClusterPtr->IotThrOutFifo, (void **)&rxMsgBufPtr);
 
 	// Add the running sequence number
-	rxMsgBufPtr->msgHeader.seqNum =  rxMsgBufPtr->seqNum & 0b11;
-	rxMsgBufPtr->msgHeader.size =  (uint8_t)rxMsgBufPtr->msgLen;
-	rxMsgBufPtr->msgHeader.msgCode = MSG_CODE_REG_DATA;
-	// should put/unput r-udp
-	rxMsgBufPtr->msgHeader.rudp = 0b1;
-
-	printf("Send txSeq %d frgmntIdx=%d/%d\n", 
-		rxMsgBufPtr->msgHeader.seqNum,
-		rxMsgBufPtr->msgHeader.frgmntIdx , rxMsgBufPtr->msgHeader.frgmnts);
- 	
-	res = udp_send(sock, (uint8_t *)rxMsgBufPtr, (rxMsgBufPtr->msgLen + sizeof(Msg_Header_t)));
+	rxMsgBufPtr->seqNum = txSeqNum;
+	rxMsgBufPtr->msgHeader.port = IOTPort;
+	rxMsgBufPtr->msgHeader.size =  (uint8_t) rxMsgBufPtr->msgLen;
+	//res = udp_send(sock, (uint8_t *)rxMsgBufPtr, (MAX_MSG_SIZE + sizeof(Msg_Header_t)));
+	res = udp_send(sock, (uint8_t *)rxMsgBufPtr, ( rxMsgBufPtr->msgLen + sizeof(Msg_Header_t)));
 	if((res < 0) && (errno != EAGAIN)){
-		hslog_error("Failed to send data to "
-			"fusion. Error - %s (%d). Retrying.\n", strerror(errno), errno);
+		hslog_error("Failed to send data to fusion. Error - %s (%d). Retrying.\n", strerror(errno), errno);
 	}
-	hist_push_frag(rxMsgBufPtr);
+
+	Fifo_put(fifoClusterPtr->IotThrInFifo, (void **)&rxMsgBufPtr);
+	txSeqNum = (txSeqNum < USHRT_MAX) ? (txSeqNum + 1) : 0;
       }
     
 }
@@ -350,15 +366,10 @@ void* fusion_receive_routine(void *args)
      
         // check if any data available from Fusion
         res = udp_recv(sock, (uint8_t *)&rxMsgPayload, sizeof(Msg_Buf_t));
-	
+
+
         if(res > 0){
-        
-		if (rxMsgPayload.msgHeader.msgCode == MSG_CODE_REQUEST_FRAG){
-			handle_lost_request((void *)&rxMsgPayload, NULL);
-			printf("Got Request fragment\n");
-			continue;
-		}
-	        // Received the data
+                // Received the data
                 rxSeqNum = rxMsgPayload.seqNum;
 			
                 Fifo_get(fifoClusterPtr->fusionThrInFifo, (void **)&rxMsgBufPtr);
@@ -422,21 +433,16 @@ int get_configuration(uint16_t *IOTPortPtr, uint16_t *fusionRxPortPtr, uint16_t 
     return 0;
 }
 
-static  Thread_Info_t IotThreadsInfo;
-static  Thread_Info_t fusionTxThreadInfo;
-static  Thread_Info_t fusionRxThreadInfo;
-static  Thread_Info_t rUdpRxThreadInfo;
-
-static  UDP_socket_t  IOTSocket;
-static  UDP_socket_t  fusionRxSocket;
-static  UDP_socket_t  fusionTxSocket;
-static  UDP_socket_t  rUDPsocket;
-
+static Thread_Info_t IotThreadsInfo;
+static Thread_Info_t fusionTxThreadInfo;
+static Thread_Info_t fusionRxThreadInfo;
+static  UDP_socket_t IOTSocket;
+static  UDP_socket_t fusionRxSocket;
+static  UDP_socket_t fusionTxSocket;
 Fifo_Cluster_t fifosCluster;
 TerminalCluster_t *terminalCLusterPtr = NULL;
 uint16_t fusionRxPort = 0; // 8081
 uint16_t fusionTxPort = 0; // 8082
-uint16_t rUdpRxPort= R_UDP_PORT_TERM;
 
 int start_udp_service(void)
 {
@@ -449,7 +455,6 @@ int start_udp_service(void)
     pthread_t udpIOTReceiveThreadId;
     pthread_t udpIOTTransmitThreadId;
     pthread_t udpFusionCommsThreadId;
-    pthread_t udpReliableThreadId;
 
     /////////////////////////////////////////////////////////////////
     // TBD - This will be a doubly linked list and not array of pointers
@@ -466,7 +471,6 @@ int start_udp_service(void)
     hslog_info("IOT device Port number - %d\n", IOTPort);
     hslog_info("Fusion Rx Port number - %d\n", fusionRxPort);
     hslog_info("Fusion Tx Port number - %d\n", fusionTxPort);
-    hslog_info("R-UDP Rx Port number - %d\n",  fusionRxPort);
 
     // Create Server socket for communication with IOT device client
     // ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -489,16 +493,9 @@ int start_udp_service(void)
         hslog_error("Failed to create fusion receive socket.\n");
         return -1;
     }
-
     // Create Client socket for communication with Fusion
     if(create_client_socket(&fusionTxSocket, "127.0.0.1", fusionTxPort) != 0){
         hslog_error("Failed to create fusion transmit socket.\n");
-        return -1;
-    }
-
-    // Create R-UDP Server socket for communication with Fusion
-    if(create_server_socket(&rUDPsocket, rUdpRxPort) != 0){
-        hslog_error("Failed to create r-udp socket.\n");
         return -1;
     }
 
@@ -525,13 +522,6 @@ int start_udp_service(void)
         hslog_error("Failed to create fifo.Line - %d.\n", __LINE__);
         return -1;
     }
-
-    fifosCluster.rUdpThrInFifo = Fifo_create();
-    if(!fifosCluster.rUdpThrInFifo){
-        hslog_error("Failed to create r-udp fifo\n");
-        return -1;
-    }
-
 
     // create the IOT receive Buffer.
     result = create_bufpool(MAX_BUFFER_ELEMS, sizeof(Msg_Buf_t), &IOT_rxBuffer, "IOT Receive Buffer");
@@ -627,16 +617,6 @@ int start_udp_service(void)
     fusionRxThreadInfo.fifoClusterPtr = &fifosCluster;
     fusionRxThreadInfo.terminalClusterPtr = NULL; // Unused by fusion receive thread
     result = pthread_create(&udpFusionCommsThreadId, &attr, &fusion_receive_routine, &fusionRxThreadInfo);
-    if (result < 0){
-        hslog_error("Failed to create fusion thread. Error - %s.\n", strerror(result));
-        return result;
-    }
-
-    rUdpRxThreadInfo.sockPtr = &rUDPsocket;
-    rUdpRxThreadInfo.fifoClusterPtr = &fifosCluster;
-    rUdpRxThreadInfo.sockPtr2 = &fusionTxSocket;
-
-    result = pthread_create(&udpReliableThreadId, &attr, &r_udp_routine, &rUdpRxThreadInfo);
     if (result < 0){
         hslog_error("Failed to create fusion thread. Error - %s.\n", strerror(result));
         return result;

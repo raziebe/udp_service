@@ -7,7 +7,6 @@
 #include <malloc.h>
 #include <assert.h>
 #include <fcntl.h>
-#include <sys/time.h>
 
 #include "hs_fifo.h"
 #include "hslog/hslog.h"
@@ -19,6 +18,9 @@ struct fifo_descriptor {
     bool            flush;
     int             pipes[2];
 };
+
+//typedef struct fifo_descriptor *fifo_t;
+
 
 /******************************************************************************
  * Fifo_create
@@ -202,3 +204,4 @@ int set_fifo_wait_size(fifo_t hFifo, size_t size)
 
     return 0;
 }
+
