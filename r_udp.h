@@ -1,7 +1,7 @@
 #ifndef __R_UDP_H__
 #define __R_UDP_H__
 
-#define     R_UDP_TIMEOUT	20
+#define     R_UDP_TIMEOUT	40
 #define     R_UDP_TIMEOUT_MS   (1000 * R_UDP_TIMEOUT)
 #define     R_UDP_PORT_TERM	9999
 #define     R_UDP_PORT_HUB	9998

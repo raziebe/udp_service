@@ -13,6 +13,7 @@ APP_OBJS = 	hs_udp.o \
 		hs_udp_fragments.o \
 		inotify.o \
 		r_udp.o \
+		rudp_req.o \
 		hslog/hslog.o \
 		hslog/hslog-multicast.o \
 		hslog/hslog-rotate.o

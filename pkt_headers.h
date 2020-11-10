@@ -22,20 +22,6 @@ typedef struct   __attribute__ ((packed))  Msg_Header  {
 } Msg_Header_t;
 
 /*
- The old header is:
-typedef struct   __attribute__ ((packed))  Msg_Header  {
-    // Bit 0, if set indicates that this payload is a fragment of bigger message.
-    // Bit 1-7, indicate the fragment index supporting a maximum of 127 fragments.
-    uint8_t     frgmntByte;
-    uint8_t      size;
-    uint16_t     port;
-}Msg_Header_t;
-
-Therefore, as it is possible that a hibridiant network would consist of several Terminals generations, 
-we mark this generation as gen 2. A terminal's version is defined in the NMS.
-*/
-
-/*
  * Handshake 
 */
 typedef struct   __attribute__ ((packed))  rUdp_Handshake {

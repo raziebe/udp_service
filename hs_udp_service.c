@@ -160,9 +160,8 @@ void* iot_transmit_routine(void *args)
     uint8_t             frgmntIdx = 0;
     uint8_t             *dataPtr = NULL;
     int                 index = 0;
-    UDP_Fragments_Table_t fragmentsTable;
+    extern UDP_Fragments_Table_t fragmentsTable;
 
-    init_fragments_table(&fragmentsTable);
 
     // create the epoll instance
     epollFd = epoll_create1(0);
@@ -194,20 +193,6 @@ void* iot_transmit_routine(void *args)
      	  
             Fifo_get(fifoClusterPtr->fusionThrOutFifo, (void **)&dataPayLoad);
 
-            #if defined(HUBPP)
-            const TerminalInfo_t *terminalDataPtr = get_terminal(infoPtr->terminalClusterPtr, dataPayLoad->msgHeader.termId);
-            if(terminalDataPtr){
-                dataPayLoad->msgHeader.port = 0; // TBD Use App server port number
-                sock->addr.sin_port =  htons(terminalDataPtr->port);
-                sock->addr.sin_addr.s_addr = terminalDataPtr->ip;
-            }
-            else{
-                // Invalid terminal drop the packet.
-                hslog_error("Terminal %d not found. Dropping packet.\n", terminalDataPtr->terminalID);
-                continue;
-            }
-            #endif
-
             // Send the data to the terminal's destination;
             //////////////////////////////////////////////////////////////////////////
             // Change this to traverse the doubly linked list in deployment to get the
@@ -232,7 +217,7 @@ void* iot_transmit_routine(void *args)
                     hslog_error("Failed to send data to IOT device. Error - %s (%d). Retrying.\n", strerror(errno), errno);
                 
                 // Release the fragment
-                release_fragment(&fragmentsTable, dataPayLoad->termId);
+                release_fragment(msgHandle);
             }
             
 	    update_stats_pkts_sent(1);
@@ -360,7 +345,7 @@ void* fusion_receive_routine(void *args)
 		}
 	        // Received the data
                 rxSeqNum = rxMsgPayload.seqNum;
-			
+
                 Fifo_get(fifoClusterPtr->fusionThrInFifo, (void **)&rxMsgBufPtr);
 		rxMsgPayload.msgLen = res - sizeof(Msg_Header_t);
                 memcpy(rxMsgBufPtr, &rxMsgPayload, sizeof(Msg_Buf_t));
