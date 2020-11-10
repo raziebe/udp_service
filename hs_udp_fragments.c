@@ -22,12 +22,12 @@ void init_fragments_table(UDP_Fragments_Table_t *fragmentsTable)
     }
 }
 
-UDP_Fragment_t* find_terminal(UDP_Fragments_Table_t *fragmentsTable, uint16_t terminalId,uint8_t pktSeq,int ver)
+UDP_Fragment_t* find_terminal(UDP_Fragments_Table_t *fragmentsTable, uint16_t terminalId,uint8_t pktSeq)
 {
     int index = 0;
 
-    if (pktSeq >= MAX_PKTS && ver == 2){
-    	printf("%s Seq too high\n",__func__);
+    if (pktSeq >= MAX_PKTS){
+    	printf("%s Seq %d too high\n",__func__,pktSeq);
     	return NULL;
     }
 

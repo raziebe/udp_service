@@ -121,7 +121,7 @@ void hist_push_frag(Msg_Buf_t* dataPayLoad)
 	pthread_mutex_unlock(&sync_hist);
 }
 
-Msg_Buf_t* hist_peek_head(void)
+Msg_Buf_t* hist_peek_timed_head(void)
 {
 	if (ListHead == NULL) {
 		return NULL;
@@ -145,7 +145,7 @@ void free_history(void *info)
         Fifo_Cluster_t *fifoClusterPtr = infoPtr->fifoClusterPtr;
 
 	pthread_mutex_lock(&sync_hist);
-	while ( (h = hist_peek_head()) != NULL){
+	while ( (h = hist_peek_timed_head()) != NULL){
 		hist_pop_frag(fifoClusterPtr);
 	}	
 	pthread_mutex_unlock(&sync_hist);

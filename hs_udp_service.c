@@ -327,8 +327,6 @@ void* fusion_receive_routine(void *args)
         }
 
         if(waitFds == 0){
-            // Timeout continue wait for read.
-
             continue;
         }
      
@@ -348,7 +346,15 @@ void* fusion_receive_routine(void *args)
                 Fifo_get(fifoClusterPtr->fusionThrInFifo, (void **)&rxMsgBufPtr);
 		rxMsgPayload.msgLen = res - sizeof(Msg_Header_t);
                 memcpy(rxMsgBufPtr, &rxMsgPayload, sizeof(Msg_Buf_t));
-                Fifo_put(fifoClusterPtr->fusionThrOutFifo, (void **)&rxMsgBufPtr);
+/*
+ * Simulate packet loss: hub to terminal
+*/
+		static int pkt_drop_count = 0;
+		if (pkt_drop_count++ % 13){
+                	Fifo_put(fifoClusterPtr->fusionThrOutFifo, (void **)&rxMsgBufPtr);
+		}else{
+			printf("Droppping packet\n");
+		}
 		continue;
         }
         if((res < 0) && (errno != EAGAIN)){

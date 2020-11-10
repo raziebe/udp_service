@@ -35,7 +35,7 @@ int defragment(UDP_Fragments_Table_t *fragmentsTable, Msg_Buf_t *msg, UDP_Fragme
 // Return pointer to existing fragment that holds data for a given terminal ID, if doesn't exist
 // finds an used fragment handle and returns it, if no free handles, returns NULL.
 UDP_Fragment_t* get_fragment_handle(UDP_Fragments_Table_t *fragmentsTable, uint16_t terminalId);
-UDP_Fragment_t* find_terminal(UDP_Fragments_Table_t *fragmentsTable, uint16_t terminalId,uint8_t pktSeq,int ver);
+UDP_Fragment_t* find_terminal(UDP_Fragments_Table_t *fragmentsTable, uint16_t terminalId,uint8_t pktSeq);
 UDP_Fragment_t* get_freeFragment(UDP_Fragments_Table_t *fragmentsTable, uint16_t terminalId,uint8_t pktSeq);
 int release_fragment(UDP_Fragment_t* handle);
 

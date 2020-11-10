@@ -17,10 +17,11 @@
 
 #define TERM_SERVICE_USER_RELIABLE_UDP 5
 int8_t last_pkt_seq = -1;
+static 	UDP_socket_t    *fusionSock;
 
 void term_set_cur_pkt_seq(int8_t seqNum)
 {
-	last_pkt_seq = last_pkt_seq;
+	last_pkt_seq = seqNum;
 
 }
 
@@ -32,11 +33,13 @@ int8_t term_get_cur_pkt_seq(void)
 
 
 /* dump timdeout fragments */
-void* r_udp_req_routine(void __attribute__ ((unused)) *args)
+void* r_udp_req_routine(void *args)
 {
 	extern UDP_Fragments_Table_t fragmentsTable;
 	struct timeval curTime;
 	long tm;
+    	Thread_Info_t   *infoPtr  = (Thread_Info_t *)args;
+    	fusionSock     = infoPtr->sockPtr2;
 
 	while (1){
 
@@ -65,18 +68,19 @@ void* r_udp_req_routine(void __attribute__ ((unused)) *args)
 
 int hub_send_req(rUdpFragmntReq_t* req)
 {
-    static const uint8_t fusion_service = TERM_SERVICE_USER_RELIABLE_UDP;
-
+    if (udp_send(fusionSock,(void *) req, sizeof(*req)) <0){
+	printf("Failed to send to fusion\n");
+    }
 }
 
-void rudp_ask_retransmit(uint8_t frgmntIdx, Msg_Header_t* msgHeader)
+void rrudp_ask_retransmit(uint8_t frgmntIdx, Msg_Header_t* msgHeader)
 {
     rUdpFragmntReq_t req;
 
 
     // construct a request
 
-    req.msgCode =  MSG_CODE_REPLY_FRAG;
+    req.msgCode =  MSG_CODE_REQUEST_FRAG;
     req.fragmntLost = frgmntIdx;
     req.seqNum	= msgHeader->seqNum;
 
@@ -86,26 +90,19 @@ void rudp_ask_retransmit(uint8_t frgmntIdx, Msg_Header_t* msgHeader)
    }
 }
 
-void rudp_complete_last_pkt(UDP_Fragments_Table_t *fragmentsTable,uint8_t pkt_seq)
+void rrudp_complete_last_pkt(UDP_Fragments_Table_t *fragmentsTable,uint8_t pkt_seq)
 {
     rUdpFragmntReq_t req;
 
-    req.msgCode =  MSG_CODE_REPLY_FRAG;
     UDP_Fragment_t* frag;
 
-    frag = find_terminal(fragmentsTable, TERMINAL_ID, pkt_seq, 2);
+    frag = find_terminal(fragmentsTable, TERMINAL_ID, pkt_seq);
     if (!frag){
-    	//printf("%s termid=%d did not find pkt seq=%d\n", __func__,terminalId,pkt_seq);
+    	printf("%s did not find pkt seq=%d\n", __func__,pkt_seq);
     	return;
     }
 
-    printf("%s  seq=%d idx=%d frgmnts=%d mask=%x\n",
-    		__func__,
-			pkt_seq,
-			frag->frgmnts-1,
-			frag->frgmnts,
-			frag->frags_mask );
-
+    req.msgCode =  MSG_CODE_REQUEST_FRAG;
     req.seqNum	= pkt_seq;
 
     for (int i = 0 ; i < frag->frgmnts; i++){
@@ -113,10 +110,10 @@ void rudp_complete_last_pkt(UDP_Fragments_Table_t *fragmentsTable,uint8_t pkt_se
     	if (!(frag->frags_mask & (1 << i))) {
     		req.fragmntLost = i;
     	    	
-		printf("%s ask :  seq=%d frag=%d\n",
+		printf("%s ask rtx:  seq=%d frag=%d\n",
     	    		__func__,  pkt_seq, i);
         	if (!hub_send_req(&req)){
-        		printf("%s: r-udp rtx error\n", __func__);
+        		printf("%s: rr-udp rtx error\n", __func__);
         	}
     	}
     }
@@ -135,17 +132,18 @@ int defragment(UDP_Fragments_Table_t *fragmentsTable, Msg_Buf_t *msg, UDP_Fragme
     uint8_t frgmntIdx = 0;
     UDP_Fragment_t* handle = NULL;
 
-    printf("%s: E FragIdx:%d, Frags:%d Seq=%d\n",
+    printf("%s: E FragIdx:%d, Frags:%d Seq=%d msgCode=%x\n",
                 __func__, 
 		msg->msgHeader.frgmntIdx, 
 		msg->msgHeader.frgmnts,
-		msg->msgHeader.seqNum);
+		msg->msgHeader.seqNum,
+		msg->msgHeader.msgCode);
 
     if(msg->msgHeader.frgmntIdx < msg->msgHeader.frgmnts) {
         // Fragmented packet, needs defragmentation.
         frgmntIdx = msg->msgHeader.frgmntIdx;
 
-        handle = find_terminal(fragmentsTable, TERMINAL_ID, msg->msgHeader.seqNum, 2);
+        handle = find_terminal(fragmentsTable, TERMINAL_ID, msg->msgHeader.seqNum);
         if (handle && !retransmit_msg(msg))
         	term_set_cur_pkt_seq(msg->msgHeader.seqNum);
         if(!handle){
@@ -161,23 +159,10 @@ int defragment(UDP_Fragments_Table_t *fragmentsTable, Msg_Buf_t *msg, UDP_Fragme
             }
         }
 
-        printf("%s: Before: frgmntIdx:%d, frgmnts:%d handle=%p handle-size:%d  "
-        		"handle->frgmntIdx=%d"
-        		" accumulatedFrgmnts:%d handle_seq=%d msgHeader.seqNum=%d cachedLastSeq=%d\n",
-                	__func__,
-				msg->msgHeader.frgmntIdx,
-				msg->msgHeader.frgmnts,
-				handle,
-				handle->size,
-				handle->frgmntIdx,
-				handle->accumulatedFrgmnts,
-				handle->pktSeqNum,
-				msg->msgHeader.seqNum,
-				term_get_cur_pkt_seq() );
 
         if (term_get_cur_pkt_seq() != msg->msgHeader.seqNum) {
         	// A new packet arrived while the last one is not complete
-        	rudp_complete_last_pkt(fragmentsTable, term_get_cur_pkt_seq() );
+        	rrudp_complete_last_pkt(fragmentsTable, term_get_cur_pkt_seq() );
         }
 
         handle->pktSeqNum = msg->msgHeader.seqNum;
@@ -200,19 +185,22 @@ int defragment(UDP_Fragments_Table_t *fragmentsTable, Msg_Buf_t *msg, UDP_Fragme
             handle->pktSeqNum = msg->msgHeader.seqNum;
             handle->frgmnts = msg->msgHeader.frgmnts;
             handle->frags_mask |= (1<< msg->msgHeader.frgmntIdx); // history
-            if (!retransmit_msg(msg))
+            if (!retransmit_msg(msg)) {
             	term_set_cur_pkt_seq(msg->msgHeader.seqNum);
-
+	    }
             gettimeofday(&handle->lastTime, NULL);
-            printf("%s: After: handle->frgmntIdx=%d TotSise:%d accumulated frmgnts:%d pktSeq=%d\n",
-                __func__,
-				handle->frgmntIdx,
-				handle->size, handle->accumulatedFrgmnts, 
-				handle->pktSeqNum);
+            printf("%s: After: handle->frgmntIdx=%d TotSise:%d accumulated frmgnts:%d pktSeq=%d RTXpkt=%x curSeq=%x\n",
+              		  __func__,
+			handle->frgmntIdx,
+			handle->size, 
+			handle->accumulatedFrgmnts, 
+			handle->pktSeqNum,
+			retransmit_msg(msg), 
+			term_get_cur_pkt_seq() );
 
             if (msg->msgHeader.frgmntIdx > (handle->frgmntIdx+1)){
             		// Naive : we jumped over a fragment,  a retransmit
-             		rudp_ask_retransmit(msg->msgHeader.frgmntIdx -1 , &msg->msgHeader);
+             		rrudp_ask_retransmit(msg->msgHeader.frgmntIdx -1 , &msg->msgHeader);
             }
 
             // cache last fragment
@@ -221,8 +209,12 @@ int defragment(UDP_Fragments_Table_t *fragmentsTable, Msg_Buf_t *msg, UDP_Fragme
             if (msg->msgHeader.frgmnts <= handle->accumulatedFrgmnts) {
                 	// Last fragment, return the defragmented data.
                 	*outFragment = handle;
-                	printf("%s TotSize %d accumFrags %d completed\n",
-                			__func__, handle->size, handle->accumulatedFrgmnts);
+                	printf("%s Seq=%d frgmnts=%d TotSize %d accumFrags %d completed\n",
+                			__func__, 
+					msg->msgHeader.seqNum,
+					msg->msgHeader.frgmnts,		
+					handle->size,
+					handle->accumulatedFrgmnts);
                 	return 0;
             }
 
