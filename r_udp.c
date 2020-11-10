@@ -50,7 +50,7 @@ void	handle_lost_request(rUdpFragmntReq_t *req, UDP_socket_t	*txSocket)
                			req->fragmntLost, req->seqNum);
 	pkt = hist_find_frag(req->fragmntLost, req->seqNum);
 	if (pkt){
-		pkt->msgHeader.msgCode = MSG_CODE_REQUEST_FRAG;
+		pkt->msgHeader.msgCode = MSG_CODE_REPLY_FRAG;
 		int res = udp_send(sockTx, (uint8_t *)pkt, (pkt->msgLen + sizeof(Msg_Header_t)));
 		if((res < 0) && (errno != EAGAIN)){
 				hslog_error("Failed to send data to "
