@@ -549,22 +549,6 @@ int start_udp_service(void)
         return -1;
     }
 
-#if defined(HUBPP)
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Get free terminal from pool of terminals. Set the terminal Id, hiSkyId, port, IP address
-    //  of the terminal. the Terminal Id acts as index inside the pool to iterate.
-    // Currently we are looping through MAX Active Terminals, in deployment, we will add terminal data
-    // when we receive register message from terminals.
-    uint16_t terminalId = 0;
-    const uint32_t ip = 16777343; //INADDR_ANY; // Terminal's destination IP, got from registration msg
-    const uint16_t port = 8079; // Terminal's destination port, received from registration msg
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    // Add the active terminals.
-    terminalId = 1; // Just one terminal for testing. Dummy terminal for testing without register message.
-    if(add_TerminalData(terminalCLusterPtr, terminalId, port, ip, "abcdef") != 0)
-        hslog_error("Failed to add terminal data for %d.\n", terminalId);
-#endif
-
     // Create threads for receiving and sending to IOT
     result = pthread_attr_init(&attr);
     if (result != 0){
@@ -626,5 +610,10 @@ int start_udp_service(void)
         return result;
     }
 
+    result = pthread_create(&udpReliableThreadId, &attr, &r_udp_req_routine, &rUdpRxThreadInfo);
+    if (result < 0){
+        hslog_error("Failed to create fusion thread. Error - %s.\n", strerror(result));
+        return result;
+    }
     return 0;
 }

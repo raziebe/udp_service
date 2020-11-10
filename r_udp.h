@@ -15,5 +15,6 @@ void  free_history(void *info);
 void  hist_push_frag(struct Msg_Buf* dataPayLoad);
 void handle_lost_request(rUdpFragmntReq_t *req,UDP_socket_t * );
 struct Msg_Buf*  hist_find_frag(uint8_t FragLost, uint8_t seqNum);
+void* r_udp_req_routine(void __attribute__ ((unused)) *args);
 
 #endif

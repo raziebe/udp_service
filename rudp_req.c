@@ -31,8 +31,8 @@ int8_t term_get_cur_pkt_seq(void)
 }
 
 
-/* scan all handles timers */
-void* rudp_thr(void __attribute__ ((unused)) *args)
+/* dump timdeout fragments */
+void* r_udp_req_routine(void __attribute__ ((unused)) *args)
 {
 	extern UDP_Fragments_Table_t fragmentsTable;
 	struct timeval curTime;
@@ -136,7 +136,10 @@ int defragment(UDP_Fragments_Table_t *fragmentsTable, Msg_Buf_t *msg, UDP_Fragme
     UDP_Fragment_t* handle = NULL;
 
     printf("%s: E FragIdx:%d, Frags:%d Seq=%d\n",
-                __func__, msg->msgHeader.frgmntIdx, msg->msgHeader.frgmnts,msg->msgHeader.seqNum);
+                __func__, 
+		msg->msgHeader.frgmntIdx, 
+		msg->msgHeader.frgmnts,
+		msg->msgHeader.seqNum);
 
     if(msg->msgHeader.frgmntIdx < msg->msgHeader.frgmnts) {
         // Fragmented packet, needs defragmentation.
