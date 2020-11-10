@@ -66,23 +66,6 @@ void	handle_lost_request(rUdpFragmntReq_t *req, UDP_socket_t	*txSocket)
 }
 
 
-int handshake(UDP_socket_t *sockTx)
-{
-	rUdp_Handshake_t req;
-	int dataLen = sizeof(req);
-
-	req.msgCode = MSG_CODE_HANDSHAKE_REQUEST;
-	int res = sendto(sockTx->sockFD, &req, dataLen, 0, 
-			(struct sockaddr *)(&sockTx->addr), sockTx->addrLen);
-
-	if (res < 0){
-		hslog_error("%s %d\n",__func__,__LINE__);
-		return -1;
-	}
-	return 0;
-}
-
-
 /***********************************************************************/
 static Msg_Buf_t* ListHead = NULL; 
 static Msg_Buf_t* ListTail = NULL;

@@ -4,8 +4,7 @@
 #define MAX_MSG_SIZE        60 // Data size between Fusion and UDP service, packet will have 200 bytes data + header
 
 #define MSG_CODE_REG_DATA		0x1
-#define MSG_CODE_HANDSHAKE_REQUEST	0x2
-#define MSG_CODE_HANDSHAKE_REPLY	0x3
+#define MSG_CODE_REPLY_FRAG		0x3
 #define MSG_CODE_REQUEST_FRAG		0x4
 #define MSG_CODE_XX3			0x5
 #define MSG_CODE_XX2			0x6

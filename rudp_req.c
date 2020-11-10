@@ -76,7 +76,7 @@ void rudp_ask_retransmit(uint8_t frgmntIdx, Msg_Header_t* msgHeader)
 
     // construct a request
 
-    req.msgCode =  MSG_CODE_REQUEST_FRAG;
+    req.msgCode =  MSG_CODE_REPLY_FRAG;
     req.fragmntLost = frgmntIdx;
     req.seqNum	= msgHeader->seqNum;
 
@@ -90,7 +90,7 @@ void rudp_complete_last_pkt(UDP_Fragments_Table_t *fragmentsTable,uint8_t pkt_se
 {
     rUdpFragmntReq_t req;
 
-    req.msgCode =  MSG_CODE_REQUEST_FRAG;
+    req.msgCode =  MSG_CODE_REPLY_FRAG;
     UDP_Fragment_t* frag;
 
     frag = find_terminal(fragmentsTable, TERMINAL_ID, pkt_seq, 2);
