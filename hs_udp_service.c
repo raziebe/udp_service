@@ -25,6 +25,7 @@ const char *fifo_core = "/dev/hsfifo_0";
 
 uint16_t IOTPort = 0; //8080
 
+
 static pthread_mutex_t IOTSocketMutex = PTHREAD_MUTEX_INITIALIZER;
 
 void debug_buffer(char *msg, uint8_t *buffer, int bufLen)
@@ -177,53 +178,51 @@ void* iot_transmit_routine(void *args)
         return NULL;
     }
 
-    while(1)
-    {
+    while(1) {
         // wait for the receive socket to be ready with data
         waitFds = epoll_wait(epollFd, events, MAX_EVENTS, waitTime);
         if(waitFds == -1){
             hslog_error("Listen on transmit socket failed.Error - %s", strerror(errno));                
             break;
         }
-        else if(waitFds == 0){
+
+        if(waitFds == 0){
             // Timeout continue wait for write.
      	   
             continue;
-        } else {// Check if data available in transmit queue
-     	  
-            Fifo_get(fifoClusterPtr->fusionThrOutFifo, (void **)&dataPayLoad);
+        } 
 
-            // Send the data to the terminal's destination;
-            //////////////////////////////////////////////////////////////////////////
-            // Change this to traverse the doubly linked list in deployment to get the
-            // required terminal data.
-            ////////////////////////////////////////////////////////////////////////////
-            UDP_Fragment_t *msgHandle = NULL;
-            res = defragment(&fragmentsTable, dataPayLoad, &msgHandle);
+	// Check if data available in transmit queue
+        Fifo_get(fifoClusterPtr->fusionThrOutFifo, (void **)&dataPayLoad);
+
+        // Send the data to the terminal's destination;
+        //////////////////////////////////////////////////////////////////////////
+        // Change this to traverse the doubly linked list in deployment to get the
+        // required terminal data.
+        ////////////////////////////////////////////////////////////////////////////
+        UDP_Fragment_t *msgHandle = NULL;
+        res = defragment(&fragmentsTable, dataPayLoad, &msgHandle);
 		
-            if((res == 0)){
-                if(msgHandle != NULL){
+       if((res == 0)){
+           if(msgHandle != NULL){
                     dataPtr = msgHandle->data;
                     dataSizeToSend = msgHandle->size;
-                }
-                else{
+             } else{
                     dataPtr = dataPayLoad->data;
                     dataSizeToSend = dataPayLoad->msgLen;
-                }
-                // Have data to send.
-                res = udp_send(sock, dataPtr, dataSizeToSend);
-                if((res < 0) && (errno != EAGAIN))
+             }
+             // Have data to send.
+             res = udp_send(sock, dataPtr, dataSizeToSend);
+             if((res < 0) && (errno != EAGAIN))
                     // Failed to send data.
                     hslog_error("Failed to send data to IOT device. Error - %s (%d). Retrying.\n", strerror(errno), errno);
                 
                 // Release the fragment
-                release_fragment(msgHandle);
-            }
-            
-	    update_stats_pkts_sent(1);
-            Fifo_put(fifoClusterPtr->fusionThrInFifo, (void **)&dataPayLoad);
-        }  
-    }
+             release_fragment(msgHandle);
+           }
+	   update_stats_pkts_sent(1);
+           Fifo_put(fifoClusterPtr->fusionThrInFifo, (void **)&dataPayLoad);
+        }
 }
 
 void* fusion_transmit_routine(void *args)

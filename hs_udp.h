@@ -11,6 +11,7 @@
 #include <netinet/ip.h>
 
 #define NET_PACKET_SIZE     1500
+#define TERMINAL_ID	0
 
 typedef struct HS_udp_socket
 {
