@@ -15,6 +15,8 @@ void read_spi_conf(void)
 	extern int service_disabled;	
 	conf_data_t conf;
 
+	_read_config(&conf);
+	
 	conf.service_id = 0;
 	hslog_info("SERVICE ID=%s\n",
 		conf.service_id == SERVICE_ID_BLE ? "BLE" : "UDP" );

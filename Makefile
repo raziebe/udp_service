@@ -12,7 +12,6 @@ APP_OBJS = 	hs_udp.o \
 		Terminals_Handler.o \
 		hs_udp_fragments.o \
 		inotify.o \
-		r_udp.o \
 		hslog/hslog.o \
 		hslog/hslog-multicast.o \
 		hslog/hslog-rotate.o

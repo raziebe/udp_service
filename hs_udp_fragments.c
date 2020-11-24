@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string.h>
 #include "hs_udp_fragments.h"
 #include "hslog/hslog.h"
@@ -73,10 +74,10 @@ int defragment(UDP_Fragments_Table_t *fragmentsTable, Msg_Buf_t *msg, UDP_Fragme
     uint16_t terminalId = msg->termId;
     UDP_Fragment_t* handle = NULL;
 
-    if(msg->msgHeader.frgmntIdx < msg->msgHeader.frgmnts) {
+    if((msg->msgHeader.frgmntByte & (0x01)) || ((msg->msgHeader.frgmntByte & 0xFE) != 0)) {
 
         // Fragmented packet, needs defragmentation.
-        frgmntIdx = msg->msgHeader.frgmntIdx;
+        frgmntIdx = (msg->msgHeader.frgmntByte & 0xFE) >> 1;        
         handle = find_terminal(fragmentsTable, terminalId);
         if(!handle){
             // Does not exist, create new one.
@@ -92,17 +93,17 @@ int defragment(UDP_Fragments_Table_t *fragmentsTable, Msg_Buf_t *msg, UDP_Fragme
             }
         }
         
-        frgmntIdx = msg->msgHeader.frgmntIdx;
+        frgmntIdx = (msg->msgHeader.frgmntByte & 0xFE) >> 1;
         if(handle->frgmntIdx == frgmntIdx){
             // Copy the contents
             memcpy(handle->data + handle->size, msg->data, msg->msgLen);
             handle->frgmntIdx = frgmntIdx + 1; // Next fragment index.
             handle->size += msg->msgLen;
 
-	    if(msg->msgHeader.frgmntIdx < msg->msgHeader.frgmnts) {
-               	 // More fragments to come, don't return the defragmented data yet.
-                 *outFragment = NULL;
-               	 return -1;
+            if(msg->msgHeader.frgmntByte & (0x01)){
+                // More fragments to come, don't return the defragmented data yet.
+                *outFragment = NULL;
+                return -1;
             }
             else{
                 // Last fragment, return the defragmented data.
