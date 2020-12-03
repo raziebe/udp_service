@@ -1,4 +1,4 @@
-EXEC = hs_udp_service
+EXEC = hs_rudp_service
 APP_OBJS = 	hs_udp.o \
 		mitigation.o \
 		sensor_stats.o \
