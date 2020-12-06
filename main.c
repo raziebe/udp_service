@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
     slgCfg.nToFile = 0;
     slgCfg.nPretty = 1;
     hslog_config_set(&slgCfg);
-    init_network_log("227.0.0.1", NULL, 5555);
+    init_network_log("227.0.0.5", NULL, 5555);
 
     parse_options(argc, argv); 
     read_spi_conf();
