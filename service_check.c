@@ -34,45 +34,46 @@ static int listensock;
 #define TERM_APP_OK 	0x00
 #define TERM_APP_ERROR	0xFF
 
-typedef struct term_app_control_msg_{
+typedef struct __attribute__ ((packed)) term_app_control_msg_{
 	uint32_t opcode;
 	union {
 		sensor_stats_t stats;
 		char buf[1000];
 	}u;
-} term_app_control_msg_t;
+}   __attribute__ ((packed)) term_app_control_msg_t;
 
-
-
-static int term_udp_send(int sock, void *msg, int size)
+static int term_udp_send(void *msg, int size)
 {
 	int res;
+	int sock;
 	struct sockaddr_in tx_addr = {0};
 
 	tx_addr.sin_family = AF_INET; 
     	tx_addr.sin_addr.s_addr = INADDR_ANY;
 	tx_addr.sin_port = htons(TERM_APP_HS_UDP_SRV_RX_PORT);
+	sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
-	res = sendto(listensock, 
+	res = sendto(sock, 
 			msg, 
 			size,
 			 MSG_CONFIRM,
 			(const struct sockaddr *) &tx_addr, 
 			(socklen_t) sizeof(tx_addr));
-
+	close(sock);
 	return res;
 }
 
 void process_term_app_msg(term_app_control_msg_t* termmsg)
 {
 	int bytes;
-
+	
+	hslog_debug("opcode %x\n",termmsg->opcode);
 	switch (termmsg->opcode)
 	{
 	case TERM_APP_SERVICE_DISABLE:
 			termmsg->opcode  = TERM_APP_OK;
 			service_disabled = 1;
-			bytes = term_udp_send(listensock, termmsg, sizeof(*termmsg));
+			bytes = term_udp_send(termmsg, sizeof(*termmsg));
 			if (bytes < 0){
 				hslog_error("Service disabled Failed to tx:");
 			}
@@ -80,9 +81,9 @@ void process_term_app_msg(term_app_control_msg_t* termmsg)
 		break;
 
 	case   TERM_APP_SERVICE_ENABLE:
-			termmsg->opcode = TERM_APP_OK;
-			service_disabled=0;
-			bytes = term_udp_send(listensock, termmsg, sizeof(*termmsg));
+			termmsg->opcode  = TERM_APP_OK;
+			service_disabled =  0;
+			bytes = term_udp_send(termmsg, sizeof(*termmsg));
 			if (bytes < 0){
 				hslog_error("Service enabled Failed to tx:");
 			}
@@ -91,7 +92,9 @@ void process_term_app_msg(term_app_control_msg_t* termmsg)
 
 	case   TERM_APP_SERVICE_STATS:
 			get_sensor_stats(&termmsg->u.stats);
-			bytes = term_udp_send(listensock, termmsg, sizeof(*termmsg));
+			hslog_debug("stats %x\n",termmsg->u.stats.pkts_recv);
+			termmsg->opcode  = TERM_APP_OK;
+			bytes = term_udp_send(termmsg, sizeof(*termmsg));
 			if (bytes < 0){
 				hslog_error("Service stats failed to tx:");
 			}
@@ -123,7 +126,6 @@ void* service_control(void * dummy)
 			printf("%s %d\n",__func__,__LINE__);
 			continue;
 		}
-		printf("%s %d %x %d\n",__func__,__LINE__,fds[0].revents,rc);
 		if (rc < 0){
 			hslog_error("Polling error %s\n",strerror(errno));
 			continue;

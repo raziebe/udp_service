@@ -23,7 +23,7 @@ CC=arm-linux-gnueabihf-gcc
 #CC=gcc -g
 all: $(EXEC)
 
-hs_udp_service: $(APP_OBJS)
+hs_rudp_service: $(APP_OBJS)
 	$(CC) -g $(LDFLAGS) -o $@ $(APP_OBJS) $(LDLIBS$(LDLIBS_$@)) $(LIBS) $(CFLAGS)
 
 clean:
