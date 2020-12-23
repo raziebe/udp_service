@@ -1,4 +1,23 @@
 EXEC = hs_udp_service
+ifeq "$(ARCH)" "arm" #32bit arm arch
+CROSS_TOOLS_PATH = ~/BSP/hiSkyDev/3rdparty/zedboard/toolchain/gcc-arm-linux-gnueabi/bin/#
+CROSS_TOOLS_PREFIX = arm-linux-gnueabihf-
+ARCH = arm
+ARCH_FLAG=ARM
+else 	# default x86 arch
+CROSS_TOOLS_PATH = 
+CROSS_TOOLS_PREFIX = 
+ARCH = x86
+ARCH_FLAG=X86
+endif
+
+CC = $(CROSS_TOOLS_PATH)$(CROSS_TOOLS_PREFIX)gcc
+AR = $(CROSS_TOOLS_PATH)$(CROSS_TOOLS_PREFIX)ar
+
+DBG_FLAGS := -O0 -g -D_DEBUG -ffunction-sections -fdata-sections
+GCC_FLAGS := -std=gnu99 -Wall -Wextra -Wshadow -Wdouble-promotion -Wformat=2 -Wundef -fno-common -fstack-usage -Wconversion #-Werror 
+CFLAGS :=$(DBG_FLAGS) $(GCC_FLAGS) # $(IDIR)
+
 APP_OBJS = 	hs_udp.o \
 		mitigation.o \
 		sensor_stats.o \
@@ -19,8 +38,6 @@ APP_OBJS = 	hs_udp.o \
 		hslog/hslog-rotate.o
 
 LIBS = -lpthread
-CC=arm-linux-gnueabihf-gcc
-#CC=gcc -g
 all: $(EXEC)
 
 hs_udp_service: $(APP_OBJS)
