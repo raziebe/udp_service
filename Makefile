@@ -38,8 +38,7 @@ APP_OBJS = 	hs_udp.o \
 		hslog/hslog-rotate.o
 
 LIBS = -lpthread
-CC=arm-linux-gnueabihf-gcc
-#CC=gcc -g
+
 all: $(EXEC)
 
 hs_rudp_service: $(APP_OBJS)

@@ -7,6 +7,7 @@
 *.swp
 core
 hs_udp_service*
+hs_rudp_service
 *tmp*
 *.tar*
 *.zip
@@ -16,6 +17,7 @@ snap*
 *.bak*
 *.diff
 *.orig
+tags
 GPATH
 GRTAGS
 GTAGS

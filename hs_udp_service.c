@@ -92,7 +92,7 @@ void* iot_receive_routine(void *args)
 		continue;
         }
 
-	int frgmnts = res/MAX_MSG_SIZE + 1;
+	int frgmnts = res/MAX_MSG_SIZE + 1*(0< (res%MAX_MSG_SIZE));
 	txSeqNum++;
         if(res > 0){
                 // Received data
@@ -114,8 +114,10 @@ void* iot_receive_routine(void *args)
                         dataPayLoad->msgLen = res;
                         res = 0;
                     }
-                    dataPayLoad->msgHeader.frgmntIdx = frgmntIdx & 0b11111;
+                    dataPayLoad->msgHeader.frgmntIdx = frgmntIdx & FRAG_MASK;
+		    printf("%s %d %d \n",__func__,frgmntIdx,dataPayLoad->msgHeader.frgmntIdx);
                     frgmntIdx++;
+				    
 		    // Pad out with zeroes
                     memset(dataPayLoad->data, 0x00, MAX_MSG_SIZE);
                     // Get fifo to read data from socket
