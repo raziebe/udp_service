@@ -272,8 +272,6 @@ void* fusion_transmit_routine(void *args)
 	rxMsgBufPtr->msgHeader.seqNum =  rxMsgBufPtr->seqNum & 0b11;
 	rxMsgBufPtr->msgHeader.size =  (uint8_t)rxMsgBufPtr->msgLen;
 	rxMsgBufPtr->msgHeader.msgCode = MSG_CODE_REG_DATA;
-	// should put/unput r-udp
-	rxMsgBufPtr->msgHeader.rudp = 0b1;
 
 	printf("Send txSeq %d frgmntIdx=%d/%d\n", 
 		rxMsgBufPtr->msgHeader.seqNum,

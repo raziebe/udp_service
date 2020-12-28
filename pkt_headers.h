@@ -3,19 +3,15 @@
 
 #define MAX_MSG_SIZE        60 // Data size between Fusion and UDP service, packet will have 200 bytes data + header
 
-#define MSG_CODE_REG_DATA		0x1
-#define MSG_CODE_REPLY_FRAG		0x3
-#define MSG_CODE_REQUEST_FRAG		0x4
-#define MSG_CODE_XX3			0x5
-#define MSG_CODE_XX2			0x6
-#define MSG_CODE_REQ_VERSION		0x7
+#define MSG_CODE_REG_DATA		0x0
+#define MSG_CODE_REPLY_FRAG		0x1
+#define MSG_CODE_REQUEST_FRAG		0x2
 
 typedef struct   __attribute__ ((packed))  Msg_Header  {
-    uint16_t     msgCode:3;
-    uint16_t     rudp:1;
+    uint16_t     msgCode:2;
     uint16_t     frgmntIdx:5; 
     uint16_t     frgmnts:5;
-    uint16_t	 seqNum:2; // Combined with frgmntIdx the pkt id is within 2^7
+    uint16_t	 seqNum:4; // Combined with frgmntIdx the pkt id is within 2^7
 
     uint8_t      size;      
 } Msg_Header_t;
@@ -24,16 +20,16 @@ typedef struct   __attribute__ ((packed))  Msg_Header  {
  * Handshake 
 */
 typedef struct   __attribute__ ((packed))  rUdp_Handshake {
-    uint8_t     msgCode:3; 
-    uint8_t     pad:5; 
+    uint8_t     msgCode:2; 
+    uint8_t     pad:6; 
     uint16_t 	transmition_timeout_secs;
     uint16_t	retransmission_timeout_secs;
     uint16_t    iot_port;
 } rUdp_Handshake_t; 
 
 typedef struct   __attribute__ ((packed))  rUdpFragmntReq  {
-    uint8_t      msgCode:3; 
-    uint8_t      pad:5; 
+    uint8_t      msgCode:2; 
+    uint8_t      pad:6; 
     uint8_t      fragmntLost;
     uint8_t      seqNum;
 } rUdpFragmntReq_t; 
