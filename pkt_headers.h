@@ -7,6 +7,8 @@
 #define MSG_CODE_REPLY_FRAG		0x1
 #define MSG_CODE_REQUEST_FRAG		0x2
 
+#define SEQ_MASK			0b1111
+
 typedef struct   __attribute__ ((packed))  Msg_Header  {
     uint16_t     msgCode:2;
     uint16_t     frgmntIdx:5; 

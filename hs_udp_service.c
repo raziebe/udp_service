@@ -269,7 +269,7 @@ void* fusion_transmit_routine(void *args)
 	Fifo_get(fifoClusterPtr->IotThrOutFifo, (void **)&rxMsgBufPtr);
 
 	// Add the running sequence number
-	rxMsgBufPtr->msgHeader.seqNum =  rxMsgBufPtr->seqNum & 0b11;
+	rxMsgBufPtr->msgHeader.seqNum =  rxMsgBufPtr->seqNum & SEQ_MASK;
 	rxMsgBufPtr->msgHeader.size =  (uint8_t)rxMsgBufPtr->msgLen;
 	rxMsgBufPtr->msgHeader.msgCode = MSG_CODE_REG_DATA;
 
