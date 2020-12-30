@@ -1,3 +1,10 @@
+# UDP and r-UDP services Makefile for both PC (simulation) and ARM (Terminal) platforms
+#
+
+#------------- Configuration -------------------
+VERSION = 301
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+
 EXEC = hs_rudp_service
 ifeq "$(ARCH)" "arm" #32bit arm arch
 CROSS_TOOLS_PATH = ~/BSP/hiSkyDev/3rdparty/zedboard/toolchain/gcc-arm-linux-gnueabi/bin/#
