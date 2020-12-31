@@ -7,7 +7,6 @@
 #include <malloc.h>
 #include <assert.h>
 #include <fcntl.h>
-#include <sys/time.h>
 
 #include "hs_fifo.h"
 #include "hslog/hslog.h"
@@ -202,3 +201,4 @@ int set_fifo_wait_size(fifo_t hFifo, size_t size)
 
     return 0;
 }
+

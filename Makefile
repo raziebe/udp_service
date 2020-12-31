@@ -20,6 +20,7 @@ endif
 
 CC = $(CROSS_TOOLS_PATH)$(CROSS_TOOLS_PREFIX)gcc
 AR = $(CROSS_TOOLS_PATH)$(CROSS_TOOLS_PREFIX)ar
+STRIP = $(CROSS_TOOLS_PATH)$(CROSS_TOOLS_PREFIX)strip
 
 DBG_FLAGS := -O0 -g -D_DEBUG -ffunction-sections -fdata-sections
 GCC_FLAGS := -std=gnu99 -Wall -Wextra -Wshadow -Wdouble-promotion -Wformat=2 -Wundef -fno-common -fstack-usage -Wconversion #-Werror 
@@ -48,8 +49,11 @@ LIBS = -lpthread
 
 all: $(EXEC)
 
-hs_rudp_service: $(APP_OBJS)
+$(EXEC): $(EXEC).elf
+	$(STRIP) $(EXEC).elf -o $(EXEC)
+
+$(EXEC).elf: $(APP_OBJS)
 	$(CC) -g $(LDFLAGS) -o $@ $(APP_OBJS) $(LDLIBS$(LDLIBS_$@)) $(LIBS) $(CFLAGS)
 
 clean:
-	rm -f *.o hslog/*.o  $(EXEC) *.gdb *.elf *.a
+	rm -f *.o hslog/*.o  hslog/*.su  $(EXEC) $(EXEC).elf *.gdb *.elf *.a *.su

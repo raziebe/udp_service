@@ -7,7 +7,7 @@
 *.swp
 core
 hs_udp_service*
-hs_rudp_service
+hs_rudp_service*
 *tmp*
 *.tar*
 *.zip
